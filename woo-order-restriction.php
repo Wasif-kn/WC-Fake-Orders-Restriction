@@ -1,13 +1,12 @@
 <?php
 /**
  * Plugin Name: WC Fake Orders Restriction
- * Plugin URI: http://example.com/plugin-name-uri/
+ * Plugin URI: https://github.com/Wasif-kn/WC-Fake-Orders-Restriction
  * Description: This plugin restricts orders based on email, phone number, or IP address in WooCommerce.
  * Version: 1.0.0
  * Author: Wasif Khan
- * Author URI: http://example.com/
+ * Author URI: https://github.com/Wasif-kn
  * License: GPL-2.0+
- * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain: wc_fake_restriction
  * Domain Path: /languages
  */

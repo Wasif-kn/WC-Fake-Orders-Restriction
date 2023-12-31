@@ -255,18 +255,98 @@ add_action('woocommerce_checkout_process', 'prevent_order_with_certain_email');
 
 function prevent_order_with_certain_email()
 {
+    //get restricted data
     global $email_items;
     global $phone_items;
     global $ip_items;
 
+    //store restricted data
     $restricted_phones = $phone_items;
     $restricted_emails = $email_items;
     $restricted_ips = $ip_items;
 
+    //get data from checkout form
     $billing_email = $_POST['billing_email'];
     $billing_phone = $_POST['billing_phone'];
     $user_ip = $_SERVER['REMOTE_ADDR'];
 
+    // Function to get previous order dates based on currently submitted email
+    function get_order_date($billing_email)
+    {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'wc_orders';
+
+        // Query to fetch all data from the table
+        $query = "SELECT date_created_gmt FROM $table_name WHERE billing_email = '$billing_email'";
+
+        // Get results from the database
+        $results = $wpdb->get_results($query, ARRAY_A);
+
+        return $results;
+    }
+
+
+    //Get date time from orders table
+    $email_date = get_order_date($billing_email);
+
+
+    //store date time from orders table
+    $order_timestamp = array();
+    foreach ($email_date as $key => $value) {
+        $order_timestamp[] = $value['date_created_gmt'];
+    }
+
+
+    //get dates and times of orders to detect possible spams
+    function checkDuplicatesWithin2Minutes($timestamps)
+    {
+        // Initialize an array to store processed dates and their timestamps
+        $seenDates = [];
+
+        foreach ($timestamps as $timestamp) {
+            // Parse the timestamp string into a DateTime object
+            $datetime = \DateTime::createFromFormat('Y-m-d H:i:s', $timestamp);
+
+            // Handle invalid timestamp format
+            if ($datetime === false) {
+                throw new InvalidArgumentException("Invalid timestamp format: $timestamp");
+            }
+
+            // Extract the date portion from the DateTime object
+            $date = $datetime->format('Y-m-d');
+
+            // Check if the date has already been seen
+            if (isset($seenDates[$date])) {
+                // If yes, compare timestamps with existing ones for the same date
+                foreach ($seenDates[$date] as $previousTimestamp) {
+                    $timeDiffInSeconds = $datetime->getTimestamp() - $previousTimestamp->getTimestamp();
+                    if (abs($timeDiffInSeconds) <= 120) {
+                        return true; // Duplicates found within 2 minutes
+                    }
+                }
+            } else {
+                // If the date is new, create an empty sub-array for it
+                $seenDates[$date] = [];
+            }
+
+            // Add the current timestamp to the sub-array for its date
+            $seenDates[$date][] = $datetime;
+        }
+
+        // If no duplicates found within 2 minutes, return false
+        return false;
+    }
+
+    
+    if (checkDuplicatesWithin2Minutes($order_timestamp)) {
+        insert_values_into_wc_fake_restriction(time(), 'Email', $billing_email);
+
+    } else {
+    }
+
+
+    //show error if restricted
     if (in_array($billing_email, $restricted_emails)) {
         wc_add_notice(__('Sorry, we are unable to process orders with this email address. Please contact us for assistance.'), 'error');
         return false;
@@ -278,3 +358,4 @@ function prevent_order_with_certain_email()
         return false;
     }
 }
+
